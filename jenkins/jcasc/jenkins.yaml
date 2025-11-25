@@ -1,0 +1,44 @@
+jenkins:
+  systemMessage: "Jenkins - Infraestructura como Código con Terraform"
+  
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: admin
+  
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+  numExecutors: 2
+  mode: NORMAL
+  
+  quietPeriod: 5
+  scmCheckoutRetryCount: 3
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "aws-credentials"
+              username: "${AWS_ACCESS_KEY_ID}"
+              password: "${AWS_SECRET_ACCESS_KEY}"
+              description: "AWS Credentials para Terraform"
+
+unclassified:
+  location:
+    url: "http://localhost:8080/"
+    adminAddress: "admin@localhost"
+
+  globalLibraries:
+    libraries: []
+
+tool:
+  terraform:
+    installations:
+      - name: "terraform-1.5.0"
+        home: "/usr/local/bin"
