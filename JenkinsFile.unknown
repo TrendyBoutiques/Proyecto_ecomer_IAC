@@ -1,0 +1,113 @@
+pipeline {
+    agent any
+    
+    environment {
+        AWS_REGION = 'us-east-1'
+        TF_VERSION = '1.5.0'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '📦 Obteniendo código del repositorio...'
+                checkout scm
+            }
+        }
+        
+        stage('Verificar Herramientas') {
+            steps {
+                echo '🔍 Verificando instalación de herramientas...'
+                sh '''
+                    terraform --version
+                    aws --version
+                '''
+            }
+        }
+        
+        stage('Terraform Init') {
+            steps {
+                echo '🚀 Inicializando Terraform...'
+                dir('iac') {
+                    sh '''
+                        terraform init -reconfigure
+                    '''
+                }
+            }
+        }
+        
+        stage('Terraform Validate') {
+            steps {
+                echo '✅ Validando configuración de Terraform...'
+                dir('iac') {
+                    sh '''
+                        terraform validate
+                    '''
+                }
+            }
+        }
+        
+        stage('Terraform Plan') {
+            steps {
+                echo '📋 Generando plan de ejecución...'
+                dir('iac') {
+                    sh '''
+                        terraform plan -out=tfplan
+                    '''
+                }
+            }
+        }
+        
+        stage('Terraform Apply - Approval') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    input message: '¿Desea aplicar los cambios de Terraform?', ok: 'Aplicar'
+                }
+            }
+        }
+        
+        stage('Terraform Apply') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo '🔨 Aplicando cambios de infraestructura...'
+                dir('iac') {
+                    sh '''
+                        terraform apply -auto-approve tfplan
+                    '''
+                }
+            }
+        }
+        
+        stage('Guardar Outputs') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo '💾 Guardando outputs de Terraform...'
+                dir('iac') {
+                    sh '''
+                        terraform output -json > outputs.json || echo "{}" > outputs.json
+                    '''
+                    archiveArtifacts artifacts: 'outputs.json', allowEmptyArchive: true
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '✅ Pipeline ejecutado exitosamente!'
+        }
+        failure {
+            echo '❌ Pipeline falló. Revisa los logs.'
+        }
+        always {
+            echo '🧹 Limpiando workspace...'
+            cleanWs()
+        }
+    }
+}
