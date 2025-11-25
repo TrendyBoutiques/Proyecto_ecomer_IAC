@@ -1,0 +1,10 @@
+configuration-as-code:latest
+workflow-aggregator:latest
+git:latest
+credentials:latest
+credentials-binding:latest
+pipeline-stage-view:latest
+docker-workflow:latest
+cloudbees-folder:latest
+timestamper:latest
+ws-cleanup:latest
