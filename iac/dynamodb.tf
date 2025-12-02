@@ -46,7 +46,8 @@ resource "aws_kms_alias" "dynamodb_key_alias" {
   target_key_id = aws_kms_key.dynamodb_key.key_id
 }
 
-# Política para la clave KMS
+# En dynamodb.tf, en la política KMS (alrededor de la línea 64-78)
+
 data "aws_iam_policy_document" "kms_policy" {
   statement {
     sid    = "Enable IAM User Permissions"
@@ -74,12 +75,11 @@ data "aws_iam_policy_document" "kms_policy" {
         aws_iam_role.lambda_registrations_exec_role.arn,
         aws_iam_role.lambda_catalogo_exec_role.arn,
         aws_iam_role.lambda_card_exec_role.arn,
-        aws_iam_role.lambda_ordenes_exec_role.arn
+        aws_iam_role.lambda_orderandshipping_exec_role.arn  # ✅ CAMBIAR AQUÍ
       ]
     }
   }
 }
-
 # ============================================================================
 # TABLAS DYNAMODB
 # ============================================================================
