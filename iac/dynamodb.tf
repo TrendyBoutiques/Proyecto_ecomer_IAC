@@ -74,7 +74,7 @@ data "aws_iam_policy_document" "kms_policy" {
         aws_iam_role.lambda_registrations_exec_role.arn,
         aws_iam_role.lambda_catalogo_exec_role.arn,
         aws_iam_role.lambda_card_exec_role.arn,
-        aws_iam_role.lambda_orderandshipping_exec_role.arn
+        aws_iam_role.lambda_ordenes_exec_role.arn
       ]
     }
   }

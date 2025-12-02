@@ -126,3 +126,7 @@ resource "aws_iam_role_policy_attachment" "ordenes_basic_execution" {
   role       = aws_iam_role.lambda_ordenes_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
+output "lambda_ordenes_arn" {
+  description = "ARN de la función Lambda de Ordenes"
+  value       = aws_lambda_function.ordenes.arn
+}
