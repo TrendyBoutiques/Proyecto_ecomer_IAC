@@ -1,12 +1,14 @@
-data "archive_file" "lambda_catalogo" {
+# 1. Empaquetado del código
+# Asumimos que el código fuente de órdenes está en ../ordenes
+data "archive_file" "lambda_ordenes" {
   type        = "zip"
-  source_dir  = "${path.module}/../catalogo"
-  output_path = "${path.module}/bin/catalogo.zip"
+  source_dir  = "${path.module}/../ordenes" 
+  output_path = "${path.module}/bin/ordenes.zip"
 }
 
-# IAM Role para Catalogo
-resource "aws_iam_role" "lambda_catalogo_exec_role" {
-  name = "${var.project_name}-catalogo-exec-role"
+# 2. IAM Role específico para la Lambda de Ordenes
+resource "aws_iam_role" "lambda_ordenes_exec_role" {
+  name = "${var.project_name}-ordenes-exec-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -22,17 +24,18 @@ resource "aws_iam_role" "lambda_catalogo_exec_role" {
   tags = var.common_tags
 }
 
-# Grupo de logs con retención configurable
-resource "aws_cloudwatch_log_group" "catalogo_logs" {
-  name              = "/aws/lambda/${var.project_name}-catalogo"
+# 3. Grupo de logs en CloudWatch
+resource "aws_cloudwatch_log_group" "ordenes_logs" {
+  name              = "/aws/lambda/${var.project_name}-ordenes"
   retention_in_days = var.cloudwatch_log_retention_days
   tags              = var.common_tags
 }
 
-# Política para CloudWatch Logs
-resource "aws_iam_policy" "catalogo_logs_policy" {
-  name        = "${var.project_name}-catalogo-logs-policy"
-  description = "Permisos para CloudWatch Logs de Catalogo"
+# 4. Políticas IAM
+# Política para escribir logs
+resource "aws_iam_policy" "ordenes_logs_policy" {
+  name        = "${var.project_name}-ordenes-logs-policy"
+  description = "Permisos para CloudWatch Logs de la lambda de Ordenes"
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -44,16 +47,16 @@ resource "aws_iam_policy" "catalogo_logs_policy" {
       ],
       Effect = "Allow",
       Resource = [
-        "arn:aws:logs:${var.aws_region}:*:log-group:/aws/lambda/${var.project_name}-catalogo:*"
+        "arn:aws:logs:${var.aws_region}:*:log-group:/aws/lambda/${var.project_name}-ordenes:*"
       ]
     }]
   })
 }
 
-# Política para DynamoDB
-resource "aws_iam_policy" "catalogo_dynamodb_policy" {
-  name        = "${var.project_name}-catalogo-dynamodb-policy"
-  description = "Permisos para DynamoDB de Catalogo"
+# Política para acceder a DynamoDB (Tabla de Órdenes)
+resource "aws_iam_policy" "ordenes_dynamodb_policy" {
+  name        = "${var.project_name}-ordenes-dynamodb-policy"
+  description = "Permisos para DynamoDB de la lambda de Ordenes"
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -68,21 +71,22 @@ resource "aws_iam_policy" "catalogo_dynamodb_policy" {
       ],
       Effect = "Allow",
       Resource = [
-        "arn:aws:dynamodb:${var.aws_region}:*:table/${var.project_name}-products",
-        "arn:aws:dynamodb:${var.aws_region}:*:table/${var.project_name}-products/index/*"
+        # Usamos interpolación directa o referenciamos el output si estuviera en módulo
+        "arn:aws:dynamodb:${var.aws_region}:*:table/${var.project_name}-orders",
+        "arn:aws:dynamodb:${var.aws_region}:*:table/${var.project_name}-orders/index/*"
       ]
     }]
   })
 }
 
-# Lambda function Catalogo
-resource "aws_lambda_function" "catalogo" {
-  function_name    = "${var.project_name}-catalogo"
+# 5. Definición de la Función Lambda
+resource "aws_lambda_function" "ordenes" {
+  function_name    = "${var.project_name}-ordenes"
   handler          = "index.handler"
   runtime          = var.lambda_runtime
-  role             = aws_iam_role.lambda_catalogo_exec_role.arn
-  filename         = data.archive_file.lambda_catalogo.output_path
-  source_code_hash = data.archive_file.lambda_catalogo.output_base64sha256
+  role             = aws_iam_role.lambda_ordenes_exec_role.arn
+  filename         = data.archive_file.lambda_ordenes.output_path
+  source_code_hash = data.archive_file.lambda_ordenes.output_base64sha256
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_size
 
@@ -93,32 +97,32 @@ resource "aws_lambda_function" "catalogo" {
 
   environment {
     variables = {
-      PRODUCTS_TABLE = "${var.project_name}-products"
-      LOG_LEVEL      = var.log_level
+      ORDERS_TABLE = "${var.project_name}-orders"
+      LOG_LEVEL    = var.log_level
     }
   }
 
   tags       = var.common_tags
-  depends_on = [aws_cloudwatch_log_group.catalogo_logs]
+  depends_on = [aws_cloudwatch_log_group.ordenes_logs]
 }
 
-# Attachments para Catalogo
-resource "aws_iam_role_policy_attachment" "catalogo_logs_attach" {
-  role       = aws_iam_role.lambda_catalogo_exec_role.name
-  policy_arn = aws_iam_policy.catalogo_logs_policy.arn
+# 6. Attachments (Vincular políticas al rol)
+resource "aws_iam_role_policy_attachment" "ordenes_logs_attach" {
+  role       = aws_iam_role.lambda_ordenes_exec_role.name
+  policy_arn = aws_iam_policy.ordenes_logs_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "catalogo_dynamodb_attach" {
-  role       = aws_iam_role.lambda_catalogo_exec_role.name
-  policy_arn = aws_iam_policy.catalogo_dynamodb_policy.arn
+resource "aws_iam_role_policy_attachment" "ordenes_dynamodb_attach" {
+  role       = aws_iam_role.lambda_ordenes_exec_role.name
+  policy_arn = aws_iam_policy.ordenes_dynamodb_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "catalogo_vpc_attach" {
-  role       = aws_iam_role.lambda_catalogo_exec_role.name
+resource "aws_iam_role_policy_attachment" "ordenes_vpc_attach" {
+  role       = aws_iam_role.lambda_ordenes_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
-resource "aws_iam_role_policy_attachment" "catalogo_basic_execution" {
-  role       = aws_iam_role.lambda_catalogo_exec_role.name
+resource "aws_iam_role_policy_attachment" "ordenes_basic_execution" {
+  role       = aws_iam_role.lambda_ordenes_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
