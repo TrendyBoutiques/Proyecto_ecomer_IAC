@@ -43,11 +43,11 @@ resource "aws_lambda_function" "purchase_confirmation" {
 
   environment {
     variables = {
-      LOG_LEVEL             = var.log_level
+      LOG_LEVEL = var.log_level
       # He corregido el nombre de la tabla para que coincida con dynamodb.tf
-      ORDERS_TABLE = aws_dynamodb_table.orders_table.name
+      ORDERS_TABLE          = aws_dynamodb_table.orders_table.name
       STRIPE_WEBHOOK_SECRET = var.stripe_webhook_secret
-      
+
       # Si tienes un archivo sns.tf, descomenta esta línea:
       # SNS_TOPIC_ARN         = aws_sns_topic.email_notifications.arn
     }
@@ -84,8 +84,8 @@ resource "aws_iam_policy" "lambda_purchase_confirmation_policy" {
         Action = ["dynamodb:UpdateItem", "dynamodb:PutItem", "dynamodb:Query", "dynamodb:GetItem"],
         # Referencia corregida a la tabla 'orders'
         Resource = [
-            aws_dynamodb_table.orders_table.arn,
-            "${aws_dynamodb_table.orders_table.arn}/index/*"
+          aws_dynamodb_table.orders_table.arn,
+          "${aws_dynamodb_table.orders_table.arn}/index/*"
         ]
       },
       {
