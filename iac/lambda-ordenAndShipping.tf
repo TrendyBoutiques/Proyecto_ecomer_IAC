@@ -1,14 +1,15 @@
-# 1. Empaquetado del código
-# Asumimos que el código fuente de órdenes está en ../ordenes
-data "archive_file" "lambda_ordenes" {
+# Cambiar TODOS los nombres de "ordenes" a "orderandshipping"
+
+# Archivo de la Lambda (antes lambda-ordenes.tf, ahora lambda-orderandshipping.tf)
+
+data "archive_file" "lambda_orderandshipping" {
   type        = "zip"
-  source_dir  = "${path.module}/../ordenes" 
-  output_path = "${path.module}/bin/ordenes.zip"
+  source_dir  = "${path.module}/../orderandshipping"  # También cambiar nombre de carpeta
+  output_path = "${path.module}/bin/orderandshipping.zip"
 }
 
-# 2. IAM Role específico para la Lambda de Ordenes
-resource "aws_iam_role" "lambda_ordenes_exec_role" {
-  name = "${var.project_name}-ordenes-exec-role"
+resource "aws_iam_role" "lambda_orderandshipping_exec_role" {
+  name = "${var.project_name}-orderandshipping-exec-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -24,18 +25,15 @@ resource "aws_iam_role" "lambda_ordenes_exec_role" {
   tags = var.common_tags
 }
 
-# 3. Grupo de logs en CloudWatch
-resource "aws_cloudwatch_log_group" "ordenes_logs" {
-  name              = "/aws/lambda/${var.project_name}-ordenes"
+resource "aws_cloudwatch_log_group" "orderandshipping_logs" {
+  name              = "/aws/lambda/${var.project_name}-orderandshipping"
   retention_in_days = var.cloudwatch_log_retention_days
   tags              = var.common_tags
 }
 
-# 4. Políticas IAM
-# Política para escribir logs
-resource "aws_iam_policy" "ordenes_logs_policy" {
-  name        = "${var.project_name}-ordenes-logs-policy"
-  description = "Permisos para CloudWatch Logs de la lambda de Ordenes"
+resource "aws_iam_policy" "orderandshipping_logs_policy" {
+  name        = "${var.project_name}-orderandshipping-logs-policy"
+  description = "Permisos para CloudWatch Logs de la lambda de Order and Shipping"
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -47,16 +45,15 @@ resource "aws_iam_policy" "ordenes_logs_policy" {
       ],
       Effect = "Allow",
       Resource = [
-        "arn:aws:logs:${var.aws_region}:*:log-group:/aws/lambda/${var.project_name}-ordenes:*"
+        "arn:aws:logs:${var.aws_region}:*:log-group:/aws/lambda/${var.project_name}-orderandshipping:*"
       ]
     }]
   })
 }
 
-# Política para acceder a DynamoDB (Tabla de Órdenes)
-resource "aws_iam_policy" "ordenes_dynamodb_policy" {
-  name        = "${var.project_name}-ordenes-dynamodb-policy"
-  description = "Permisos para DynamoDB de la lambda de Ordenes"
+resource "aws_iam_policy" "orderandshipping_dynamodb_policy" {
+  name        = "${var.project_name}-orderandshipping-dynamodb-policy"
+  description = "Permisos para DynamoDB de la lambda de Order and Shipping"
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -71,22 +68,22 @@ resource "aws_iam_policy" "ordenes_dynamodb_policy" {
       ],
       Effect = "Allow",
       Resource = [
-        # Usamos interpolación directa o referenciamos el output si estuviera en módulo
-        "arn:aws:dynamodb:${var.aws_region}:*:table/${var.project_name}-orders",
-        "arn:aws:dynamodb:${var.aws_region}:*:table/${var.project_name}-orders/index/*"
+        aws_dynamodb_table.orders_table.arn,
+        "${aws_dynamodb_table.orders_table.arn}/index/*",
+        aws_dynamodb_table.shipping_table.arn,
+        "${aws_dynamodb_table.shipping_table.arn}/index/*"
       ]
     }]
   })
 }
 
-# 5. Definición de la Función Lambda
-resource "aws_lambda_function" "ordenes" {
-  function_name    = "${var.project_name}-ordenes"
+resource "aws_lambda_function" "orderandshipping" {
+  function_name    = "${var.project_name}-orderandshipping"
   handler          = "index.handler"
   runtime          = var.lambda_runtime
-  role             = aws_iam_role.lambda_ordenes_exec_role.arn
-  filename         = data.archive_file.lambda_ordenes.output_path
-  source_code_hash = data.archive_file.lambda_ordenes.output_base64sha256
+  role             = aws_iam_role.lambda_orderandshipping_exec_role.arn
+  filename         = data.archive_file.lambda_orderandshipping.output_path
+  source_code_hash = data.archive_file.lambda_orderandshipping.output_base64sha256
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_size
 
@@ -97,36 +94,32 @@ resource "aws_lambda_function" "ordenes" {
 
   environment {
     variables = {
-      ORDERS_TABLE = "${var.project_name}-orders"
-      LOG_LEVEL    = var.log_level
+      ORDERS_TABLE   = aws_dynamodb_table.orders_table.name
+      SHIPPING_TABLE = aws_dynamodb_table.shipping_table.name
+      LOG_LEVEL      = var.log_level
     }
   }
 
   tags       = var.common_tags
-  depends_on = [aws_cloudwatch_log_group.ordenes_logs]
+  depends_on = [aws_cloudwatch_log_group.orderandshipping_logs]
 }
 
-# 6. Attachments (Vincular políticas al rol)
-resource "aws_iam_role_policy_attachment" "ordenes_logs_attach" {
-  role       = aws_iam_role.lambda_ordenes_exec_role.name
-  policy_arn = aws_iam_policy.ordenes_logs_policy.arn
+resource "aws_iam_role_policy_attachment" "orderandshipping_logs_attach" {
+  role       = aws_iam_role.lambda_orderandshipping_exec_role.name
+  policy_arn = aws_iam_policy.orderandshipping_logs_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "ordenes_dynamodb_attach" {
-  role       = aws_iam_role.lambda_ordenes_exec_role.name
-  policy_arn = aws_iam_policy.ordenes_dynamodb_policy.arn
+resource "aws_iam_role_policy_attachment" "orderandshipping_dynamodb_attach" {
+  role       = aws_iam_role.lambda_orderandshipping_exec_role.name
+  policy_arn = aws_iam_policy.orderandshipping_dynamodb_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "ordenes_vpc_attach" {
-  role       = aws_iam_role.lambda_ordenes_exec_role.name
+resource "aws_iam_role_policy_attachment" "orderandshipping_vpc_attach" {
+  role       = aws_iam_role.lambda_orderandshipping_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
-resource "aws_iam_role_policy_attachment" "ordenes_basic_execution" {
-  role       = aws_iam_role.lambda_ordenes_exec_role.name
+resource "aws_iam_role_policy_attachment" "orderandshipping_basic_execution" {
+  role       = aws_iam_role.lambda_orderandshipping_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-output "lambda_ordenes_arn" {
-  description = "ARN de la función Lambda de Ordenes"
-  value       = aws_lambda_function.ordenes.arn
 }
