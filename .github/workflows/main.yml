@@ -1,0 +1,38 @@
+name: Validación de Terraform
+
+# Esto define cuándo se activa: al hacer push a la rama main (o master)
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+
+jobs:
+  terraform-check:
+    name: Revisar Calidad del Código
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Bajamos tu código al servidor de GitHub
+      - name: Checkout del código
+        uses: actions/checkout@v3
+
+      # 2. Instalamos Terraform en el servidor (la herramienta)
+      - name: Instalar Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0 # Puedes cambiar esto por la versión que uses
+
+      # 3. Inicializamos Terraform (descarga plugins necesarios)
+      - name: Terraform Init
+        run: terraform init -backend=false
+        working-directory: ./iac # ¡IMPORTANTE! Aquí le decimos que entre a tu carpeta 'iac'
+
+      # 4. Validamos que la sintaxis sea correcta (busca errores de escritura)
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: ./iac
+
+      # 5. Revisamos el formato (si indentaste mal, esto te avisa)
+      - name: Terraform Format Check
+        run: terraform fmt -check
+        working-directory: ./iac
