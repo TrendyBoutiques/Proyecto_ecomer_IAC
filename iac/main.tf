@@ -6,6 +6,13 @@ terraform {
     }
   }
 }
+  backend "s3" {
+    bucket = "terraform-state-proyecto-ecommerce" # EL NOMBRE DEL BUCKET QUE CREASTE
+    key    = "terraform.tfstate"       # Nombre del archivo donde guardará la memoria
+    region = "us-east-2"               # Tu región principal
+  }
+  # -------------------
+
 
 provider "aws" {
   region = "us-east-2"
