@@ -13,5 +13,5 @@ provider "aws" {
 
 provider "aws" {
   alias  = "waf_region"
-  region = "us-east-2"
+  region = "us-east-1"
 }
