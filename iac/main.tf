@@ -6,7 +6,7 @@ terraform {
     }
   }
   backend "s3" {
-    bucket = "terraform-state-proyecto-ecommerce"
+    bucket = "${var.project_name}-${var.environment}--website"
     key    = "terraform.tfstate"       
     region = "us-east-2"               
   }
