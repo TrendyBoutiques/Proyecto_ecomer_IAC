@@ -335,15 +335,3 @@ variable "sqs_maximum_concurrency_emails" {
   default     = 5
 }
 
-variable "es_master_user" {
-  description = "Master user for Elasticsearch"
-  type        = string
-  default     = "admin"
-  sensitive   = true
-}
-
-variable "es_master_password" {
-  description = "Master password for Elasticsearch"
-  type        = string
-  sensitive   = true
-}
