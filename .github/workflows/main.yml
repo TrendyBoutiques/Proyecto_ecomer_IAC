@@ -1,38 +1,66 @@
-name: Validación de Terraform
+name: Despliegue Seguro de Infraestructura (IaC)
 
-# Esto define cuándo se activa: al hacer push a la rama main (o master)
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main", "develop" ] # Se activa en ambas ramas
   pull_request:
 
 jobs:
-  terraform-check:
-    name: Revisar Calidad del Código
+  # TRABAJO 1: Auditoría (Sonar)
+  sonar-scan:
+    name: Auditoría de Seguridad (Sonar)
     runs-on: ubuntu-latest
-    
     steps:
-      # 1. Bajamos tu código al servidor de GitHub
+      - name: Checkout del código
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # TRABAJO 2: Despliegue (Terraform)
+  terraform-deploy:
+    name: Desplegar en AWS
+    needs: sonar-scan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./iac
+
+    steps:
       - name: Checkout del código
         uses: actions/checkout@v3
 
-      # 2. Instalamos Terraform en el servidor (la herramienta)
+      - name: Configurar Credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - name: Instalar Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.5.0 # Puedes cambiar esto por la versión que uses
+          terraform_version: 1.5.0
 
-      # 3. Inicializamos Terraform (descarga plugins necesarios)
       - name: Terraform Init
-        run: terraform init -backend=false
-        working-directory: ./iac # ¡IMPORTANTE! Aquí le decimos que entre a tu carpeta 'iac'
+        run: terraform init
 
-      # 4. Validamos que la sintaxis sea correcta (busca errores de escritura)
       - name: Terraform Validate
         run: terraform validate
-        working-directory: ./iac
 
-      # 5. Revisamos el formato (si indentaste mal, esto te avisa)
       - name: Terraform Format Check
         run: terraform fmt -check
-        working-directory: ./iac
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      # CORRECCIÓN AQUÍ:
+      # Ahora permitimos que despliegue si es Main O Develop
+      - name: Terraform Apply
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && github.event_name == 'push'
+        run: terraform apply -auto-approve tfplan
